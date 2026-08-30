@@ -1,6 +1,6 @@
-import { RobotOutlined, UserOutlined } from '@ant-design/icons'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import { IconBot, IconUser } from './icons'
 import type { ChatMessage } from '../types'
 
 export default function MessageItem({ message }: { message: ChatMessage }) {
@@ -8,7 +8,9 @@ export default function MessageItem({ message }: { message: ChatMessage }) {
 
   return (
     <div className={`message-row ${isUser ? 'user' : 'assistant'}`}>
-      <div className="message-avatar">{isUser ? <UserOutlined /> : <RobotOutlined />}</div>
+      <div className={`message-avatar ${isUser ? 'user' : ''}`}>
+        {isUser ? <IconUser /> : <IconBot />}
+      </div>
       <div className="message-body">
         {isUser ? (
           <div className="message-bubble">{message.content}</div>

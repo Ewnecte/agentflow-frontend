@@ -12,10 +12,10 @@ interface Props {
 
 export default function ChatWindow({ messages, streaming, currentTitle, onSend, onStop }: Props) {
   return (
-    <div className="chat-window">
-      <div className="chat-header">
+    <main className="chat-window">
+      <header className="chat-header">
         <span className="chat-header-title">{currentTitle || '新对话'}</span>
-      </div>
+      </header>
 
       {messages.length === 0 ? (
         <div className="empty-state">
@@ -32,6 +32,6 @@ export default function ChatWindow({ messages, streaming, currentTitle, onSend, 
           </div>
         </>
       )}
-    </div>
+    </main>
   )
 }

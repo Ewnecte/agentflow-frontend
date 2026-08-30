@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { App as AntdApp, Layout } from 'antd'
 import ChatWindow from './components/ChatWindow'
 import Sidebar from './components/Sidebar'
+import Toast from './components/Toast'
+import type { ToastItem } from './components/Toast'
 import {
   deleteConversation,
   getConversation,
@@ -10,24 +11,31 @@ import {
   sendMessage,
 } from './api'
 import type { ChatMessage, ConversationSummary } from './types'
-import './App.css'
 
 function App() {
-  const { message } = AntdApp.useApp()
   const [conversations, setConversations] = useState<ConversationSummary[]>([])
   const [currentId, setCurrentId] = useState<number | null>(null)
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [streaming, setStreaming] = useState(false)
   const [collapsed, setCollapsed] = useState(false)
+  const [toasts, setToasts] = useState<ToastItem[]>([])
   const abortRef = useRef<AbortController | null>(null)
+
+  const pushToast = useCallback((text: string, kind: 'error' | 'info' = 'error') => {
+    const id = Date.now() + Math.random()
+    setToasts((prev) => [...prev, { id, text, kind }])
+    setTimeout(() => {
+      setToasts((prev) => prev.filter((t) => t.id !== id))
+    }, 3000)
+  }, [])
 
   const loadConversations = useCallback(async () => {
     try {
       setConversations(await listConversations())
     } catch {
-      message.error('加载会话列表失败')
+      pushToast('加载会话列表失败')
     }
-  }, [message])
+  }, [pushToast])
 
   useEffect(() => {
     loadConversations()
@@ -41,10 +49,10 @@ function App() {
         setCurrentId(id)
         setMessages(detail.messages)
       } catch {
-        message.error('加载会话失败')
+        pushToast('加载会话失败')
       }
     },
-    [streaming, currentId, message],
+    [streaming, currentId, pushToast],
   )
 
   const newChat = useCallback(() => {
@@ -75,21 +83,18 @@ function App() {
       const appendToken = (text: string) => {
         setMessages((prev) => {
           const next = [...prev]
-          const last = next[next.length - 1]
-          next[next.length - 1] = { ...last, content: last.content + text }
+          const last = { ...next[next.length - 1] }
+          last.content += text
+          next[next.length - 1] = last
           return next
         })
       }
 
-      const finish = (finalContent?: string) => {
+      const finalize = (patch: (last: ChatMessage) => ChatMessage) => {
         setMessages((prev) => {
           const next = [...prev]
-          const last = next[next.length - 1]
-          next[next.length - 1] = {
-            ...last,
-            content: finalContent ?? last.content,
-            pending: false,
-          }
+          const last = { ...next[next.length - 1] }
+          next[next.length - 1] = patch(last)
           return next
         })
         setStreaming(false)
@@ -102,24 +107,27 @@ function App() {
           {
             onToken: appendToken,
             onDone: (payload) => {
-              finish()
+              finalize((last) => ({ ...last, pending: false }))
               if (payload.conversation_id) setCurrentId(payload.conversation_id)
               loadConversations()
             },
             onError: (msg) => {
-              finish(`⚠️ ${msg}`)
-              message.error('生成失败')
+              finalize((last) => ({
+                ...last,
+                pending: false,
+                content: last.content ? `${last.content}\n\n⚠️ ${msg}` : `⚠️ ${msg}`,
+              }))
             },
           },
           controller.signal,
         )
       } catch (e) {
-        finish()
+        finalize((last) => ({ ...last, pending: false }))
         const err = e as Error
-        if (err.name !== 'AbortError') message.error(err.message || '请求失败')
+        if (err.name !== 'AbortError') pushToast(err.message || '请求失败')
       }
     },
-    [streaming, currentId, loadConversations, message],
+    [streaming, currentId, loadConversations, pushToast],
   )
 
   const handleRename = useCallback(
@@ -128,10 +136,10 @@ function App() {
         await renameConversation(id, title)
         setConversations((prev) => prev.map((c) => (c.id === id ? { ...c, title } : c)))
       } catch {
-        message.error('重命名失败')
+        pushToast('重命名失败')
       }
     },
-    [message],
+    [pushToast],
   )
 
   const handleDelete = useCallback(
@@ -144,14 +152,14 @@ function App() {
           setMessages([])
         }
       } catch {
-        message.error('删除失败')
+        pushToast('删除失败')
       }
     },
-    [currentId, message],
+    [currentId, pushToast],
   )
 
   return (
-    <Layout className="app-layout">
+    <div className="app">
       <Sidebar
         conversations={conversations}
         currentId={currentId}
@@ -169,7 +177,8 @@ function App() {
         onSend={handleSend}
         onStop={() => abortRef.current?.abort()}
       />
-    </Layout>
+      <Toast toasts={toasts} />
+    </div>
   )
 }
 

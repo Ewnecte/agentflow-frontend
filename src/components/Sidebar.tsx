@@ -1,14 +1,6 @@
 import { useState } from 'react'
-import { Button, Dropdown, Input, Modal } from 'antd'
-import {
-  DeleteOutlined,
-  EditOutlined,
-  MenuFoldOutlined,
-  MenuUnfoldOutlined,
-  MessageOutlined,
-  MoreOutlined,
-  PlusOutlined,
-} from '@ant-design/icons'
+import Modal from './Modal'
+import { IconChat, IconEdit, IconMenu, IconPlus, IconTrash } from './icons'
 import type { ConversationSummary } from '../types'
 
 interface Props {
@@ -34,6 +26,7 @@ export default function Sidebar({
 }: Props) {
   const [renameTarget, setRenameTarget] = useState<ConversationSummary | null>(null)
   const [renameValue, setRenameValue] = useState('')
+  const [deleteTarget, setDeleteTarget] = useState<ConversationSummary | null>(null)
 
   const openRename = (c: ConversationSummary) => {
     setRenameTarget(c)
@@ -45,86 +38,112 @@ export default function Sidebar({
     setRenameTarget(null)
   }
 
-  const confirmDelete = (c: ConversationSummary) => {
-    Modal.confirm({
-      title: '删除对话',
-      content: `确定删除「${c.title}」吗？删除后无法恢复。`,
-      okText: '删除',
-      okButtonProps: { danger: true },
-      cancelText: '取消',
-      onOk: () => onDelete(c.id),
-    })
-  }
-
   return (
-    <div className={`sidebar ${collapsed ? 'collapsed' : ''}`}>
+    <aside className={`sidebar ${collapsed ? 'collapsed' : ''}`}>
       <div className="sidebar-header">
-        <Button
-          type="text"
-          className="collapse-btn"
-          icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
-          onClick={onToggleCollapse}
-        />
+        <button className="icon-btn" onClick={onToggleCollapse} title={collapsed ? '展开侧边栏' : '收起侧边栏'}>
+          <IconMenu />
+        </button>
         {!collapsed && (
-          <Button type="primary" block className="new-chat-btn" icon={<PlusOutlined />} onClick={onNew}>
+          <button className="new-chat-btn" onClick={onNew}>
+            <IconPlus />
             新对话
-          </Button>
+          </button>
         )}
       </div>
 
       {!collapsed && (
-        <div className="conversation-list">
+        <nav className="conversation-list">
           {conversations.map((c) => (
             <div
               key={c.id}
               className={`conversation-item ${c.id === currentId ? 'active' : ''}`}
               onClick={() => onSelect(c.id)}
             >
-              <MessageOutlined className="conversation-icon" />
-              <div className="conversation-title">{c.title}</div>
-              <Dropdown
-                trigger={['click']}
-                menu={{
-                  items: [
-                    { key: 'rename', icon: <EditOutlined />, label: '重命名' },
-                    { key: 'delete', icon: <DeleteOutlined />, label: '删除', danger: true },
-                  ],
-                  onClick: ({ key, domEvent }) => {
-                    domEvent.stopPropagation()
-                    if (key === 'rename') openRename(c)
-                    if (key === 'delete') confirmDelete(c)
-                  },
-                }}
-              >
-                <Button
-                  type="text"
-                  size="small"
-                  className="more-btn"
-                  icon={<MoreOutlined />}
-                  onClick={(e) => e.stopPropagation()}
-                />
-              </Dropdown>
+              <IconChat className="conversation-icon" />
+              <span className="conversation-title" title={c.title}>
+                {c.title}
+              </span>
+              <span className="item-actions">
+                <button
+                  className="icon-btn small"
+                  title="重命名"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    openRename(c)
+                  }}
+                >
+                  <IconEdit />
+                </button>
+                <button
+                  className="icon-btn small danger"
+                  title="删除"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setDeleteTarget(c)
+                  }}
+                >
+                  <IconTrash />
+                </button>
+              </span>
             </div>
           ))}
-          {conversations.length === 0 && <div className="empty-hint">暂无对话，点击「新对话」开始</div>}
-        </div>
+          {conversations.length === 0 && (
+            <div className="empty-hint">暂无对话，点击「新对话」开始</div>
+          )}
+        </nav>
       )}
 
       <Modal
+        open={renameTarget != null}
         title="重命名会话"
-        open={!!renameTarget}
-        onOk={submitRename}
-        onCancel={() => setRenameTarget(null)}
-        okText="确定"
-        cancelText="取消"
+        onClose={() => setRenameTarget(null)}
+        footer={
+          <>
+            <button className="btn" onClick={() => setRenameTarget(null)}>
+              取消
+            </button>
+            <button className="btn primary" onClick={submitRename} disabled={!renameValue.trim()}>
+              确定
+            </button>
+          </>
+        }
       >
-        <Input
+        <input
+          className="text-input"
           value={renameValue}
+          autoFocus
           onChange={(e) => setRenameValue(e.target.value)}
-          onPressEnter={submitRename}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') submitRename()
+          }}
           placeholder="输入新标题"
         />
       </Modal>
-    </div>
+
+      <Modal
+        open={deleteTarget != null}
+        title="删除对话"
+        onClose={() => setDeleteTarget(null)}
+        footer={
+          <>
+            <button className="btn" onClick={() => setDeleteTarget(null)}>
+              取消
+            </button>
+            <button
+              className="btn danger"
+              onClick={() => {
+                if (deleteTarget) onDelete(deleteTarget.id)
+                setDeleteTarget(null)
+              }}
+            >
+              删除
+            </button>
+          </>
+        }
+      >
+        <p className="modal-text">确定删除「{deleteTarget?.title}」吗？删除后无法恢复。</p>
+      </Modal>
+    </aside>
   )
 }
