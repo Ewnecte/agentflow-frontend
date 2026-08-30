@@ -21,6 +21,7 @@ export default function ChatWindow({ messages, streaming, currentTitle, onSend, 
         <div className="empty-state">
           <div className="empty-logo">AI</div>
           <h1>我能帮你做什么？</h1>
+          <p className="empty-subtitle">输入你的问题，开始一段对话</p>
           <ChatInput streaming={streaming} onSend={onSend} onStop={onStop} />
         </div>
       ) : (
